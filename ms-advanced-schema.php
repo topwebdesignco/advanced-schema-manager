@@ -27,22 +27,25 @@
  * Update URI:        https://github.com/topwebdesignco/advanced-schema-manager
  */
 
+defined('ABSPATH') or die();
 
-function ms_advanced_schema_enqueue_styles() {
-    wp_enqueue_style('ms-advanced-schema-styles', plugin_dir_url(__FILE__) . 'style.css', array(), time());
+add_action('admin_enqueue_scripts', 'asm_enqueue_styles');
+function asm_enqueue_styles() {
+    wp_enqueue_style('asm-styles', plugin_dir_url(__FILE__) . 'style.css', array(), time());
+    wp_enqueue_code_editor(array('type' => 'application/json'));
+    wp_enqueue_script('wp-theme-plugin-editor');
+    wp_enqueue_style('wp-codemirror');
 }
-add_action('admin_enqueue_scripts', 'ms_advanced_schema_enqueue_styles');
 
-
-register_activation_hook(__FILE__, 'ms_advanced_schema_create_table');
-function ms_advanced_schema_create_table() {
+register_activation_hook(__FILE__, 'asm_create_table');
+function asm_create_table() {
     global $wpdb;
-    $table = $wpdb->prefix . 'ms_advanced_schemas';
+    $table = $wpdb->prefix . 'asm_schemas';
     $charset_collate = $wpdb->get_charset_collate();
     $sql = "CREATE TABLE IF NOT EXISTS $table (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
         page_id bigint(20) NOT NULL,
-        type varchar(255) NOT NULL,
+        schema_type varchar(255) NOT NULL,
         schema_json longtext NOT NULL,
         created_on datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_on datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -53,41 +56,41 @@ function ms_advanced_schema_create_table() {
     dbDelta($sql);
 }
 
-// register_deactivation_hook(__FILE__, 'ms_advanced_schema_delete_table');
-register_uninstall_hook(__FILE__, 'ms_advanced_schema_delete_table');
-function ms_advanced_schema_delete_table() {
+// register_deactivation_hook(__FILE__, 'asm_delete_table');
+register_uninstall_hook(__FILE__, 'asm_delete_table');
+function asm_delete_table() {
     global $wpdb;
-    $table = $wpdb->prefix . 'ms_advanced_schemas';
+    $table = $wpdb->prefix . 'asm_schemas';
     $sql = "DROP TABLE IF EXISTS $table;";
     
     $wpdb->query($sql);
 }
 
-add_action('admin_menu', 'ms_advanced_schema_menu');
-function ms_advanced_schema_menu() {
+add_action('admin_menu', 'asm_create_menu');
+function asm_create_menu() {
     $icon_url = plugins_url('icons/asm-icon.svg', __FILE__);
-    add_menu_page('Schema Manager', 'Schema Manager', 'edit_pages',  'ms-advanced-schema', 'ms_advanced_schema_all_schemas_page', $icon_url, 11);
-    add_submenu_page('ms-advanced-schema', 'All Schemas', 'All Schemas', 'edit_pages', 'ms-advanced-schema', 'ms_advanced_schema_all_schemas_page');
-    add_submenu_page('ms-advanced-schema', 'Add New Schema', 'Add New Schema', 'edit_pages', 'ms-advanced-schema-add', 'ms_advanced_schema_add_schema_page');
-    add_submenu_page('ms-advanced-schema', 'Edit Schema', '', 'edit_pages', 'ms-advanced-schema-edit', 'ms_advanced_schema_edit_schema_page');
+    add_menu_page('Schema Manager', 'Schema Manager', 'edit_pages',  'asm-home', 'asm_all_schemas_page', $icon_url, 11);
+    add_submenu_page('asm-home', 'All Schemas', 'All Schemas', 'edit_pages', 'asm-home', 'asm_all_schemas_page');
+    add_submenu_page('asm-home', 'Add New Schema', 'Add New Schema', 'edit_pages', 'asm-add-schema', 'asm_add_schema_page');
+    add_submenu_page('asm-home', 'Edit Schema', '', 'edit_pages', 'asm-edit-schema', 'asm_edit_schema_page');
 }
 
-add_action('admin_menu', 'ms_advanced_schema_set_active_menu');
-function ms_advanced_schema_set_active_menu() {
+add_action('admin_menu', 'asm_set_active_menu');
+function asm_set_active_menu() {
     global $parent_file, $submenu_file, $pagenow;
 
     // Check if we're on the "Edit Schema" page
-    if (isset($_GET['page']) && $_GET['page'] === 'ms-advanced-schema-edit') {
+    if (isset($_GET['page']) && $_GET['page'] === 'asm-edit-schema') {
         // Set parent file to "All Schemas"
-        $parent_file = 'ms-advanced-schema';
+        $parent_file = 'asm-home';
         // Set submenu file to "All Schemas" so it's highlighted
-        $submenu_file = 'ms-advanced-schema';
+        $submenu_file = 'asm-home';
     }
 }
 
-function ms_advanced_schema_all_schemas_page() {
+function asm_all_schemas_page() {
     global $wpdb;
-    $table = $wpdb->prefix . 'ms_advanced_schemas';
+    $table = $wpdb->prefix . 'asm_schemas';
     
     if (!current_user_can('edit_pages')) {
         wp_die('Unauthorized access');
@@ -106,7 +109,7 @@ function ms_advanced_schema_all_schemas_page() {
         
         if ($deleted) {
             echo '<script type="text/javascript">
-                     window.location.href="' . admin_url('admin.php?page=ms-advanced-schema&message=deleted') . '";
+                     window.location.href="' . admin_url('admin.php?page=asm-home&message=deleted') . '";
                   </script>';
             exit;
         } else {
@@ -132,7 +135,7 @@ function ms_advanced_schema_all_schemas_page() {
                     <div class="error"><p>Successfully Deleted.</p></div>
                 <?php endif; ?>
                 <h1 class="wp-heading-inline">Schemas</h1>
-                <a class="page-title-action" href="?page=ms-advanced-schema-add">Add New Schema</a>
+                <a class="page-title-action" href="?page=asm-add-schema">Add New Schema</a>
                 <hr class="wp-header-end">
                 <div class="asm flex-container">
                     <div class="table-column">
@@ -140,7 +143,7 @@ function ms_advanced_schema_all_schemas_page() {
                         <table class="wp-list-table widefat striped">
                             <thead>
                                 <tr>
-                                    <th>Page Title</th>
+                                    <th>Target Page</th>
                                     <th>Schema Type</th>
                                     <th>Actions</th>
                                 </tr>
@@ -149,11 +152,13 @@ function ms_advanced_schema_all_schemas_page() {
                                 <?php if ($schemas) : ?>
                                     <?php foreach ($schemas as $schema) : ?>
                                         <tr>
-                                            <td><a href=""><?php echo get_the_title($schema->page_id); ?></a></td>
-                                            <td><?php echo stripslashes($schema->type); ?></td>
+                                            <td><a href="#"><?php echo ($schema->page_id == -1) ? 'All Pages' : get_the_title($schema->page_id); ?></a></td>
+                                            <td><?php echo stripslashes($schema->schema_type); ?></td>
                                             <td>
-                                                <a href="?page=ms-advanced-schema-edit&edit_id=<?php echo $schema->id; ?>">Edit</a> |
-                                                <a href="<?php echo wp_nonce_url('?page=ms-advanced-schema&delete_id=' . $schema->id, 'delete_schema_' . $schema->id); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
+                                                <?php $json = stripslashes($schema->schema_json); ?>
+                                                <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schema_json)); ?>">Preview</a> |
+                                                <a href="?page=asm-edit-schema&edit_id=<?php echo $schema->id; ?>">Edit</a> |
+                                                <a href="<?php echo wp_nonce_url('?page=asm-home&delete_id=' . $schema->id, 'delete_schema_' . $schema->id); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>
@@ -161,20 +166,54 @@ function ms_advanced_schema_all_schemas_page() {
                                     <tr><td colspan="4">No schemas found.</td></tr>
                                 <?php endif; ?>
                             </tbody>
-                        </table>                        
+                        </table>
                     </div>
                     <div class="preview-column">
-                        <textarea id="preview_box" rows="40" cols="1" placeholder="Select schema to preview JSON" readonly></textarea>
+                        <textarea id="preview_box" rows="40" cols="1" placeholder='Click "Preview" to see saved schema' readonly></textarea>
                     </div>
+                    <script type="text/javascript">
+                        jQuery(document).ready(function($) {
+                            // Initialize CodeMirror
+                            var editor = wp.codeEditor.initialize($('#preview_box'), {
+                                codemirror: {
+                                    lineNumbers: true,
+                                    mode: 'application/json',
+                                    readOnly: true
+                                }
+                            }).codemirror;
+
+                            // Handle click event on preview links
+                            $('.preview-schema').on('click', function(e) {
+                                e.preventDefault();
+                                // Get the schema JSON from data attribute
+                                var schemaJSON = $(this).data('schema');
+                                // Check if the schemaJSON is already an object or needs parsing
+                                if (typeof schemaJSON === 'string') {
+                                    try {
+                                        // Parse and re-stringify to format the JSON nicely for the editor
+                                        var parsedJSON = JSON.stringify(JSON.parse(schemaJSON), null, 2);
+                                        editor.setValue(parsedJSON);
+                                    } catch (e) {
+                                        // If parsing fails, set the raw value
+                                        console.error('Error parsing JSON:', e);
+                                        editor.setValue(schemaJSON);
+                                    }
+                                } else {
+                                    // If schemaJSON is already an object, re-stringify it
+                                    editor.setValue(JSON.stringify(schemaJSON, null, 2));
+                                }
+                            });
+                        });
+                    </script>
                 </div>
             </div>
         </div>
     </div>    
     <?php
 }
-function ms_advanced_schema_add_schema_page() {
+function asm_add_schema_page() {
     global $wpdb;
-    $table = $wpdb->prefix . 'ms_advanced_schemas';
+    $table = $wpdb->prefix . 'asm_schemas';
 
     if (!current_user_can('edit_pages')) {
         wp_die('Unauthorized access');
@@ -184,55 +223,56 @@ function ms_advanced_schema_add_schema_page() {
         <h1>Add New Schema</h1>
         <?php
         // Insert data in to DB
-        if (isset($_POST['custom_schema_json']) && isset($_POST['custom_schema_page_id'])) {
-            $page_id = sanitize_text_field($_POST['custom_schema_page_id']);
-            $type = sanitize_text_field($_POST['custom_schema_type']);
-            $schema_json = wp_kses_post($_POST['custom_schema_json']);
+        if (isset($_POST['schema_json']) && isset($_POST['page_id'])) {
+            $page_id = sanitize_text_field($_POST['page_id']);
+            $schema_type = sanitize_text_field($_POST['schema_type']);
+            $schema_json = wp_kses_post($_POST['schema_json']);
             // Ensure the page ID and schema JSON are not empty
-            if (!empty($page_id) && !empty($schema_json)) {
-                    // Insert new schema
-                    $inserted = $wpdb->insert(
-                        $table,
-                        array('page_id' => $page_id, 'type' => $type, 'schema_json' => $schema_json)
-                    );
-                    // Display message
-                    if ($inserted) {
-                        // echo '<div class="updated"><p>Schema saved successfully.</p></div>';
-                        echo '<script type="text/javascript">
-                                    window.location.href="' . admin_url('admin.php?page=ms-advanced-schema&message=saved') . '";
-                                </script>';
-                        exit;
-                    } else {
-                        echo '<div class="error"><p>Failed to save schema.</p></div>';
-                    }
+            if (!empty($schema_type) && !empty($schema_json)) {
+                // Insert new schema
+                $inserted = $wpdb->insert(
+                    $table,
+                    array('page_id' => $page_id, 'schema_type' => $schema_type, 'schema_json' => $schema_json)
+                );
+                // Display message
+                if ($inserted) {
+                    // echo '<div class="updated"><p>Schema saved successfully.</p></div>';
+                    echo '<script type="text/javascript">
+                                window.location.href="' . admin_url('admin.php?page=asm-home&message=saved') . '";
+                            </script>';
+                    exit;
+                } else {
+                    echo '<div class="error"><p>Failed to save schema.</p></div>';
+                }
             } else {
                 echo '<div class="error"><p>Please select a page and enter schema data.</p></div>';
             }
         }
         // Display the form
         $pages = get_pages();
-        $selected_page = isset($_GET['page_id']) ? intval($_GET['page_id']) : '';
+        $page_id = isset($_GET['page_id']) ? intval($_GET['page_id']) : '';
         $schema_id = isset($_GET['schema_id']) ? intval($_GET['schema_id']) : '';
         $custom_schema = '';        
         if (!empty($schema_id)) {
             $schema = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $schema_id));
             if ($schema) {
-                $selected_page = $schema->page_id;
+                $page_id = $schema->page_id;
                 $custom_schema = $schema->schema_json;
             }
         }
         ?>
         <form method="post" method="">
-            <input type="hidden" name="action" value="ms_advanced_schema_submit">
+            <input type="hidden" name="action" value="asm_schema_submit">
             <input type="hidden" name="schema_id" value="<?php echo esc_attr($schema_id); ?>">
             <table class="form-table">
                 <tr>
-                    <th scope="row"><label for="custom_schema_page_id">Select Page</label></th>
+                    <th scope="row"><label for="page_id">Select Page</label></th>
                     <td>
-                        <select name="custom_schema_page_id" id="custom_schema_page_id">
+                        <select name="page_id" id="page_id">
                             <option value="">Select a page</option>
+                            <option value="-1" <?php selected($page_id, 0); ?>>All Pages</option>
                             <?php foreach ($pages as $page) : ?>
-                                <option value="<?php echo $page->ID; ?>" <?php selected($selected_page, $page->ID); ?>>
+                                <option value="<?php echo $page->ID; ?>" <?php selected($page_id, $page->ID); ?>>
                                     <?php echo $page->post_title; ?>
                                 </option>
                             <?php endforeach; ?>
@@ -240,7 +280,7 @@ function ms_advanced_schema_add_schema_page() {
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="custom_schema_type">Schema Type</label></th>
+                    <th scope="row"><label for="schema_type">Schema Type</label></th>
                     <td>
                         <?php
                         $schema_types = [
@@ -251,18 +291,18 @@ function ms_advanced_schema_add_schema_page() {
                                 "SoftwareApplication", "SpeakableSpecification", "VideoObject"
                             ];
                         ?>
-                        <select name="custom_schema_type" id="custom_schema_type">
+                        <select name="schema_type" id="schema_type">
                             <option value="">Select a type</option>
-                            <?php foreach ($schema_types as $type): ?>
-                                <option value="<?php echo $type; ?>"><?php echo $type; ?></option>
+                            <?php foreach ($schema_types as $schema_type): ?>
+                                <option value="<?php echo $schema_type; ?>"><?php echo $schema_type; ?></option>
                             <?php endforeach; ?>
                         </select>
                     </td>
                 </tr>
                 <tr>
-                    <th scope="row"><label for="custom_schema_json">JSON Schema Markup</label></th>
+                    <th scope="row"><label for="schema_json">JSON Schema Markup</label></th>
                     <td>
-                        <textarea name="custom_schema_json" id="custom_schema_json" rows="30" cols="1" class="large-text" placeholder="Paste JSON schema markup here."><?php echo esc_textarea($custom_schema); ?></textarea>
+                        <textarea name="schema_json" id="schema_json" rows="30" cols="1" class="large-text" placeholder="Paste JSON schema markup here."><?php echo esc_textarea($custom_schema); ?></textarea>
                         <p class="description">Only JSON schema markup without script tag. Example: &lt;script type="application/ld+json"&gt;&lt;/script&gt;</p>
                     </td>
                 </tr>
@@ -272,9 +312,9 @@ function ms_advanced_schema_add_schema_page() {
     </div>
     <?php
 }
-function ms_advanced_schema_edit_schema_page() {
+function asm_edit_schema_page() {
     global $wpdb;
-    $table = $wpdb->prefix . 'ms_advanced_schemas';
+    $table = $wpdb->prefix . 'asm_schemas';
     $charset_collate = $wpdb->get_charset_collate();
     
     if (!current_user_can('edit_pages')) {
@@ -285,14 +325,14 @@ function ms_advanced_schema_edit_schema_page() {
     $schema = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d", $edit_id));
 
     if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_schema'])) {
-        $type = sanitize_text_field($_POST['custom_schema_type']);
+        $schema_type = sanitize_text_field($_POST['schema_type']);
         $schema_json = wp_kses_post($_POST['schema_json']);
 
         // Update the schema
         $updated = $wpdb->update(
             $table,
             [
-                'type' => $type,
+                'type' => $schema_type,
                 'schema_json' => $schema_json,
                 'updated_on' => current_time('mysql')
             ],
@@ -303,7 +343,7 @@ function ms_advanced_schema_edit_schema_page() {
 
         if ($updated) {
             echo '<script type="text/javascript">
-                     window.location.href="' . admin_url('admin.php?page=ms-advanced-schema&message=updated') . '";
+                     window.location.href="' . admin_url('admin.php?page=asm-home&message=updated') . '";
                   </script>';
             exit;
         } else {
@@ -334,10 +374,10 @@ function ms_advanced_schema_edit_schema_page() {
                                         "SoftwareApplication", "SpeakableSpecification", "VideoObject"
                                     ];
                                 ?>
-                                <select name="custom_schema_type" id="custom_schema_type">
+                                <select name="schema_type" id="schema_type">
                                     <option value="">Select a type</option>
-                                    <?php foreach ($schema_types as $type): ?>
-                                        <option value="<?php echo $type; ?>" <?php echo ($schema->type == $type) ? 'selected' : ''; ?>><?php echo $type; ?></option>
+                                    <?php foreach ($schema_types as $schema_type): ?>
+                                        <option value="<?php echo $schema_type; ?>" <?php echo ($schema->type == $schema_type) ? 'selected' : ''; ?>><?php echo $schema_type; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                             </td>
@@ -357,10 +397,10 @@ function ms_advanced_schema_edit_schema_page() {
     <?php
 }
 
-add_action('wp_head', 'ms_advanced_schema_inject');
-function ms_advanced_schema_inject() {
+add_action('wp_head', 'asm_inject_schema');
+function asm_inject_schema() {
     global $wpdb, $post;
-    $table = $wpdb->prefix . 'ms_advanced_schemas';
+    $table = $wpdb->prefix . 'asm_schemas';
 
     if (is_page()) {
         // Retrieve the schema row from the database
