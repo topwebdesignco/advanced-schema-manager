@@ -153,8 +153,7 @@ class ASMPlugin {
                                                 <td><a href="#"><?php echo ($schema->page_id == -1) ? 'All Pages' : get_the_title($schema->page_id); ?></a></td>
                                                 <td><?php echo stripslashes($schema->schema_type); ?></td>
                                                 <td>
-                                                    <?php $json = stripslashes($schema->schema_json); ?>
-                                                    <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schema_json)); ?>">Preview</a> |
+                                                <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schema_json)); ?>">Preview</a> |
                                                     <a href="?page=asm-edit-schema&edit_id=<?php echo $schema->id; ?>">Edit</a> |
                                                     <a href="<?php echo wp_nonce_url('?page=asm-home&delete_id=' . $schema->id, 'delete_schema_' . $schema->id); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
                                                 </td>
@@ -167,6 +166,7 @@ class ASMPlugin {
                             </table>
                         </div>
                         <div class="preview-column">
+                            <div id="visual_box" style="margin-bottom: 20px; padding: 10px 0px 10px 0px; background: #f9f9f9; border: 1px solid #ddd;"></div>
                             <textarea id="code_box" rows="60" cols="1" placeholder='Click "Preview" to see saved schema' readonly></textarea>
                         </div>
                         <script type="text/javascript">
@@ -187,11 +187,13 @@ class ASMPlugin {
                                     var schemaJSON = $(this).data('schema');
                                     if (typeof schemaJSON === 'string') {
                                         try {
-                                            var parsedJSON = JSON.stringify(JSON.parse(schemaJSON), null, 2);
-                                            editor.setValue(parsedJSON);
+                                            var parsedJSON = JSON.parse(schemaJSON);
+                                            var formattedJSON = JSON.stringify(parsedJSON, null, 2);
+                                            editor.setValue(formattedJSON);
                                         } catch (e) {
                                             console.error('Error parsing JSON:', e);
                                             editor.setValue(schemaJSON);
+                                            $('#visual_box').html('<em>Error parsing schema for preview.</em>');
                                         }
                                     } else {
                                         editor.setValue(JSON.stringify(schemaJSON, null, 2));
@@ -373,7 +375,6 @@ class ASMPlugin {
                                         <option value="<?php echo $page->ID; ?>" <?php selected($schema->page_id, $page->ID); ?>><?php echo $page->post_title; ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <p class="description">Select the page to apply the schema to.</p>
                             </td>
                         </tr>
                         <tr>
@@ -394,14 +395,12 @@ class ASMPlugin {
                                         <option value="<?php echo $schema_type; ?>" <?php selected($schema->schema_type, $schema_type); ?>><?php echo $schema_type; ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <p class="description">Select schema type to properly lable saved schemas.</p>
                             </td>
                         </tr>
                         <tr>
                             <th><label for="schema_json">Schema JSON</label></th>
                             <td>
                                 <textarea id="code_box" name="schema_json" rows="10" class="large-text"><?php echo esc_textarea(stripslashes($schema->schema_json)); ?></textarea>
-                                <p class="description">Paste the schema JSON here.</p>
                             </td>
                             <script type="text/javascript">
                                 jQuery(document).ready(function($) {
