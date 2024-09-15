@@ -65,7 +65,7 @@ function ms_advanced_schema_delete_table() {
 
 add_action('admin_menu', 'ms_advanced_schema_menu');
 function ms_advanced_schema_menu() {
-    $icon_url = plugins_url('icons/json-icon-3.svg', __FILE__);
+    $icon_url = plugins_url('icons/asm-icon.svg', __FILE__);
     add_menu_page('Schema Manager', 'Schema Manager', 'edit_pages',  'ms-advanced-schema', 'ms_advanced_schema_all_schemas_page', $icon_url, 11);
     add_submenu_page('ms-advanced-schema', 'All Schemas', 'All Schemas', 'edit_pages', 'ms-advanced-schema', 'ms_advanced_schema_all_schemas_page');
     add_submenu_page('ms-advanced-schema', 'Add New Schema', 'Add New Schema', 'edit_pages', 'ms-advanced-schema-add', 'ms_advanced_schema_add_schema_page');
@@ -356,7 +356,6 @@ function ms_advanced_schema_edit_schema_page() {
     </div>
     <?php
 }
-
 
 add_action('wp_head', 'ms_advanced_schema_inject');
 function ms_advanced_schema_inject() {
