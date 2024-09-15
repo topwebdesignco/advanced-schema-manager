@@ -50,7 +50,6 @@ class ASMPlugin {
         
         add_action('admin_enqueue_scripts', [$this, 'enqueue_styles']);
         register_activation_hook(__FILE__, [$this, 'create_table']);
-        // register_uninstall_hook(__FILE__, [$this, 'delete_table']);
         add_action('admin_menu', [$this, 'create_menu']);
         add_action('admin_menu', [$this, 'set_active_menu']);
         add_action('wp_head', [$this, 'inject_schema']);
@@ -78,11 +77,6 @@ class ASMPlugin {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
     }
-
-    // public function delete_table() {
-    //     $sql = "DROP TABLE IF EXISTS $this->table;";
-    //     $this->wpdb->query($sql);
-    // }
 
     public function create_menu() {
         $icon_url = plugins_url('icons/asm-icon.svg', __FILE__);
