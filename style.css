@@ -1,0 +1,13 @@
+.asm.flex-container {
+    display: flex;
+}
+.asm .table-column {
+    flex: 1;
+    margin-right: 20px;
+}
+.asm .preview-column {
+    flex: 1;
+}
+.asm .preview-column textarea{
+    width: 100%;
+}
