@@ -1,34 +1,32 @@
 <?php
 /**
- * Plugin Name: Advanced Schema Manager
- * Description: This plugin manages custom JSON-LD schema types, and injects into selected pages.
- * Version: 1.0
- * Author: Muhammad Shoaib
- * Author URI: https://www.dynamicwerx.com
- */
-/**
  * Plugin Name
  *
  * @package           ASMPlugin
  * @author            Muhammad Shoaib
  * @copyright         2024 Muhammad Shoaib
- * @license           GPL-2.0
+ * @license           <GPL-3>This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License.
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.</GPL-3>
  *
  * @wordpress-plugin
  * Plugin Name:       Advanced Schema Manager
- * Plugin URI:        https://example.com/plugin-name
- * Description:       Description of the plugin.
+ * Plugin URI:        https://github.com/topwebdesignco/advanced-schema-manager
+ * Description:       Manage your custom built JSON-LD schema types for your WordPress website. This plugin automatically injects schemas into selected pages.
  * Version:           1.0.0
  * Requires at least: 5.2
- * Requires PHP:      7.2
- * Author:            Your Name
- * Author URI:        https://example.com
- * Text Domain:       plugin-slug
- * License:           GPL v2 or later
+ * Requires PHP:      7.4
+ * Author:            Muhammad Shoaib
+ * Author URI:        https://github.com/topwebdesignco
+ * Text Domain:       asm-advanced-schema-manager
+ * License:           GPL v3
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Update URI:        https://example.com/my-plugin/
- * Requires Plugins:  my-plugin, yet-another-plugin
+ * Update URI:        https://github.com/topwebdesignco/advanced-schema-manager
  */
+
 
 function ms_advanced_schema_enqueue_styles() {
     wp_enqueue_style('ms-advanced-schema-styles', plugin_dir_url(__FILE__) . 'style.css', array(), time());
