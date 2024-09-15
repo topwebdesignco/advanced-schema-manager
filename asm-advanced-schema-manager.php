@@ -167,11 +167,11 @@ class ASMPlugin {
                             </table>
                         </div>
                         <div class="preview-column">
-                            <textarea id="preview_box" rows="60" cols="1" placeholder='Click "Preview" to see saved schema' readonly></textarea>
+                            <textarea id="code_box" rows="60" cols="1" placeholder='Click "Preview" to see saved schema' readonly></textarea>
                         </div>
                         <script type="text/javascript">
                             jQuery(document).ready(function($) {
-                                var editor = wp.codeEditor.initialize($('#preview_box'), {
+                                var editor = wp.codeEditor.initialize($('#code_box'), {
                                     codemirror: {
                                         lineNumbers: true,
                                         mode: 'application/json',
@@ -245,27 +245,72 @@ class ASMPlugin {
                             <th><label for="page_id">Select Page</label></th>
                             <td>
                                 <select id="page_id" name="page_id">
-                                    <option value="-1" <?php selected($page_id, -1); ?>>All Pages</option>
+                                    <option value="">Select a page</option>
+                                    <option value="-1">All Pages</option>
                                     <?php foreach ($pages as $page) : ?>
-                                        <option value="<?php echo $page->ID; ?>" <?php selected($page_id, $page->ID); ?>><?php echo $page->post_title; ?></option>
+                                        <option value="<?php echo $page->ID; ?>"><?php echo $page->post_title; ?></option>
                                     <?php endforeach; ?>
                                 </select>
                                 <p class="description">Select the page to apply the schema to.</p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="schema_type">Schema Type</label></th>
+                            <th><label for="schema_type">Select Schema Type</label></th>
                             <td>
-                                <input type="text" id="schema_type" name="schema_type" value="" class="regular-text" />
-                                <p class="description">Enter the schema type.</p>
+                                <?php
+                                $schema_types = [
+                                        "Action", "Article", "Book", "BreadcrumbList", "Course", "CreativeWork",
+                                        "Dataset", "Event", "FAQ", "HowTo", "JobPosting", "LocalBusiness", 
+                                        "MediaObject", "MusicRecording", "NewsArticle", "Offer", "Organization", 
+                                        "Person", "Place", "Product", "Recipe", "Review", "Service", 
+                                        "SoftwareApplication", "SpeakableSpecification", "VideoObject"
+                                    ];
+                                ?>
+                                <select name="schema_type" id="schema_type">
+                                    <option value="">Select a type</option>
+                                    <?php foreach ($schema_types as $schema_type): ?>
+                                        <option value="<?php echo $schema_type; ?>"><?php echo $schema_type; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">Select schema type to properly lable saved schemas.</p>
                             </td>
                         </tr>
                         <tr>
                             <th><label for="schema_json">Schema JSON</label></th>
                             <td>
-                                <textarea id="schema_json" name="schema_json" rows="10" class="large-text"></textarea>
+                                <textarea id="code_box" name="schema_json" rows="10" class="large-text"></textarea>
                                 <p class="description">Paste the schema JSON here.</p>
                             </td>
+                            <script type="text/javascript">
+                                jQuery(document).ready(function($) {
+                                    var editor = wp.codeEditor.initialize($('#code_box'), {
+                                        codemirror: {
+                                            lineNumbers: true,
+                                            mode: 'application/json',
+                                            readOnly: false
+                                        }
+                                    }).codemirror;
+                                    var numberOfRows = 25;
+                                    var lineHeight = 20;
+                                    editor.setSize(null, numberOfRows * lineHeight + "px");
+
+                                    $('.preview-schema').on('click', function(e) {
+                                        e.preventDefault();
+                                        var schemaJSON = $(this).data('schema');
+                                        if (typeof schemaJSON === 'string') {
+                                            try {
+                                                var parsedJSON = JSON.stringify(JSON.parse(schemaJSON), null, 2);
+                                                editor.setValue(parsedJSON);
+                                            } catch (e) {
+                                                console.error('Error parsing JSON:', e);
+                                                editor.setValue(schemaJSON);
+                                            }
+                                        } else {
+                                            editor.setValue(JSON.stringify(schemaJSON, null, 2));
+                                        }
+                                    });
+                                });
+                            </script>
                         </tr>
                     </tbody>
                 </table>
@@ -332,18 +377,62 @@ class ASMPlugin {
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="schema_type">Schema Type</label></th>
+                            <th><label for="schema_type">Slect Schema Type</label></th>
                             <td>
-                                <input type="text" id="schema_type" name="schema_type" value="<?php echo esc_attr($schema->schema_type); ?>" class="regular-text" />
-                                <p class="description">Enter the schema type.</p>
+                                <?php
+                                $schema_types = [
+                                        "Action", "Article", "Book", "BreadcrumbList", "Course", "CreativeWork",
+                                        "Dataset", "Event", "FAQ", "HowTo", "JobPosting", "LocalBusiness", 
+                                        "MediaObject", "MusicRecording", "NewsArticle", "Offer", "Organization", 
+                                        "Person", "Place", "Product", "Recipe", "Review", "Service", 
+                                        "SoftwareApplication", "SpeakableSpecification", "VideoObject"
+                                    ];
+                                ?>
+                                <select name="schema_type" id="schema_type">
+                                    <option value="">Select a type</option>
+                                    <?php foreach ($schema_types as $schema_type): ?>
+                                        <option value="<?php echo $schema_type; ?>" <?php selected($schema->schema_type, $schema_type); ?>><?php echo $schema_type; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">Select schema type to properly lable saved schemas.</p>
                             </td>
                         </tr>
                         <tr>
                             <th><label for="schema_json">Schema JSON</label></th>
                             <td>
-                                <textarea id="schema_json" name="schema_json" rows="10" class="large-text"><?php echo esc_textarea($schema->schema_json); ?></textarea>
+                                <textarea id="code_box" name="schema_json" rows="10" class="large-text"><?php echo esc_textarea(stripslashes($schema->schema_json)); ?></textarea>
                                 <p class="description">Paste the schema JSON here.</p>
                             </td>
+                            <script type="text/javascript">
+                                jQuery(document).ready(function($) {
+                                    var editor = wp.codeEditor.initialize($('#code_box'), {
+                                        codemirror: {
+                                            lineNumbers: true,
+                                            mode: 'application/json',
+                                            readOnly: false
+                                        }
+                                    }).codemirror;
+                                    var numberOfRows = 25;
+                                    var lineHeight = 20;
+                                    editor.setSize(null, numberOfRows * lineHeight + "px");
+
+                                    $('.preview-schema').on('click', function(e) {
+                                        e.preventDefault();
+                                        var schemaJSON = $(this).data('schema');
+                                        if (typeof schemaJSON === 'string') {
+                                            try {
+                                                var parsedJSON = JSON.stringify(JSON.parse(schemaJSON), null, 2);
+                                                editor.setValue(parsedJSON);
+                                            } catch (e) {
+                                                console.error('Error parsing JSON:', e);
+                                                editor.setValue(schemaJSON);
+                                            }
+                                        } else {
+                                            editor.setValue(JSON.stringify(schemaJSON, null, 2));
+                                        }
+                                    });
+                                });
+                            </script>
                         </tr>
                     </tbody>
                 </table>
@@ -355,14 +444,25 @@ class ASMPlugin {
 
     public function inject_schema() {
         if (!is_page() && !is_single()) return;
-
-        $page_id = get_the_ID();
-        $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE page_id = %d OR page_id = -1", $page_id));
+        echo "\n<!-- Schema structured data added by Advanced Schema Manager WordPress plugin -->\n";
+        $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE page_id = -1"));
         if ($schemas) {
             foreach ($schemas as $schema) {
-                echo '<script type="application/ld+json">' . stripslashes($schema->schema_json) . '</script>';
+                $clean_schema_json = stripslashes($schema->schema_json);
+                $decoded_schema = json_decode($clean_schema_json, true);
+                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
             }
         }
+        $page_id = get_the_ID();
+        $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE page_id = %d", $page_id));
+        if ($schemas) {
+            foreach ($schemas as $schema) {
+                $clean_schema_json = stripslashes($schema->schema_json);
+                $decoded_schema = json_decode($clean_schema_json, true);
+                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            }
+        }
+        echo "\n";
     }
 }
 
