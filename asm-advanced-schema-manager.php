@@ -228,7 +228,7 @@ class ASMPlugin {
                 if (!empty($post_type)  && !empty($post_id) && !empty($schema_type) && !empty($schema_json)) {
                     $inserted = $this->wpdb->insert(
                         $this->table,
-                        ['page_id' => $page_id, 'schema_type' => $schema_type, 'schema_json' => $schema_json]
+                        ['post_type' => $post_type, 'post_id' => $post_id, 'schema_type' => $schema_type, 'schema_json' => $schema_json]
                     );
                     if ($inserted) {
                         echo '<script type="text/javascript">
