@@ -220,8 +220,8 @@ class ASMPlugin {
         <div class="wrap">
             <h1>Add New Schema</h1>
             <?php
-            print_r($_POST);
-            if (isset($_POST['post_type']) && isset($_POST['post_id']) && isset($_POST['schema_type']) && isset($_POST['schema_json'])) {
+            var_dump($_POST['post_id'], $_POST['schema_json']);
+            if (isset($_POST['post_id']) && isset($_POST['schema_json'])) {
                 $post_type = sanitize_text_field($_POST['post_type']);
                 $post_id = sanitize_text_field($_POST['post_id']);
                 $schema_type = sanitize_text_field($_POST['schema_type']);
@@ -244,7 +244,7 @@ class ASMPlugin {
                 }
             }
             $post_types = get_post_types(array('public' => true), 'objects');
-            $page_id = isset($_GET['page_id']) ? intval($_GET['page_id']) : -1;
+            // $page_id = isset($_GET['page_id']) ? intval($_GET['page_id']) : -1;
             ?>
             <form method="POST">
                 <table class="form-table">
@@ -541,7 +541,5 @@ class ASMPlugin {
         echo "\n";
     }
 }
-
-    new ASMPlugin();
-
+new ASMPlugin();
 ?>
