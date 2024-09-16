@@ -220,10 +220,7 @@ class ASMPlugin {
         <div class="wrap">
             <h1>Add New Schema</h1>
             <?php
-            if (isset($_POST['post_type'])) {
-                print_r($_POST);
-                exit;
-            }
+            print_r($_POST);
             if (isset($_POST['post_type']) && isset($_POST['post_id']) && isset($_POST['schema_type']) && isset($_POST['schema_json'])) {
                 $post_type = sanitize_text_field($_POST['post_type']);
                 $post_id = sanitize_text_field($_POST['post_id']);
