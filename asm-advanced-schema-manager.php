@@ -56,8 +56,8 @@ class ASMPlugin {
     }
 
     public function enqueue_styles() {
-        wp_enqueue_style('asm-styles', plugin_dir_url(__FILE__) . 'assets/css/style.css', [], time());
-        wp_enqueue_script('asm-scripts', plugin_dir_url(__FILE__) . 'assets/js/scripts.js', [], time(), true);
+        wp_enqueue_style('asm-styles', plugin_dir_url(__FILE__) . 'assets/css/style.css', [], '1.0.0');
+        wp_enqueue_script('asm-scripts', plugin_dir_url(__FILE__) . 'assets/js/scripts.js', [], '1.0.0', true);
         wp_enqueue_code_editor(['type' => 'application/json']);
         wp_enqueue_script('wp-theme-plugin-editor');
         wp_enqueue_style('wp-codemirror');
@@ -151,7 +151,7 @@ class ASMPlugin {
                                 <thead>
                                     <tr>
                                         <th>Category</th>
-                                        <th>Title</th>
+                                        <th>Target</th>
                                         <th>Schema Type</th>
                                         <th>Actions</th>
                                     </tr>
@@ -161,10 +161,14 @@ class ASMPlugin {
                                         <?php foreach ($schemas as $schema) : ?>
                                             <tr>
                                                 <td><?php echo $schema->postType; ?></td>
-                                                <td><a href="<?php echo the_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
+                                                <?php if ($schema->postID == 'pages') : ?>
+                                                    <td>All Pages</td>
+                                                <?php else : ?>
+                                                    <td><a href="<?php echo the_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
+                                                <?php endif; ?>
                                                 <td><?php echo $schema->schemaType; ?></td>
                                                 <td>
-                                                    <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schemaJson)); ?>">View Schema</a> |
+                                                    <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schemaJson)); ?>">View</a> |
                                                     <a href="?page=asm-edit-schema&edit_id=<?php echo $schema->id; ?>">Edit</a> |
                                                     <a href="<?php echo wp_nonce_url('?page=asm-home&delete_id=' . $schema->id, 'delete_schema_' . $schema->id); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
                                                 </td>
@@ -581,35 +585,48 @@ class ASMPlugin {
     }
 
     public function inject_schema() {
-        if (!is_page() && !is_single()) return;
-        echo "\n<!-- Schema structured data added by Advanced Schema Manager WordPress plugin developed by Muhammad Shoaib -->\n";
-        $postID = 'pages';
-        // $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE postID = %d", $postID));
-        $table_name = esc_sql($this->table);
-        $postID = absint($postID);
-        $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
-        $schemas = $this->wpdb->get_row($query);
-        if ($schemas) {
-            foreach ($schemas as $schema) {
-                $clean_schemaJson = stripslashes($schema->schemaJson);
-                $decoded_schema = json_decode($clean_schemaJson, true);
-                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+        if (is_page()) {
+            echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+            $postID = 'pages';
+            $table_name = esc_sql($this->table);
+            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %s", $postID);
+            $schemas = $this->wpdb->get_results($query);
+            if ($schemas) {
+                foreach ($schemas as $schema) {
+                    $clean_schemaJson = stripslashes($schema->schemaJson);
+                    $decoded_schema = json_decode($clean_schemaJson, true);
+                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                }
             }
-        }
-        $postID = get_the_ID();
-        // $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE postID = %d", $postID));
-        $table_name = esc_sql($this->table);
-        $postID = absint($postID);
-        $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
-        $schemas = $this->wpdb->get_row($query);
-        if ($schemas) {
-            foreach ($schemas as $schema) {
-                $clean_schemaJson = stripslashes($schema->schemaJson);
-                $decoded_schema = json_decode($clean_schemaJson, true);
-                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            $postID = get_the_ID();
+            $table_name = esc_sql($this->table);
+            $postID = absint($postID);
+            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
+            $schemas = $this->wpdb->get_results($query);
+            if ($schemas) {
+                foreach ($schemas as $schema) {
+                    $clean_schemaJson = stripslashes($schema->schemaJson);
+                    $decoded_schema = json_decode($clean_schemaJson, true);
+                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                }
             }
+            echo "\n";
+        } elseif (is_single()) {
+            echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+            $postID = get_the_ID();
+            $table_name = esc_sql($this->table);
+            $postID = absint($postID);
+            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
+            $schemas = $this->wpdb->get_results($query);
+            if ($schemas) {
+                foreach ($schemas as $schema) {
+                    $clean_schemaJson = stripslashes($schema->schemaJson);
+                    $decoded_schema = json_decode($clean_schemaJson, true);
+                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                }
+            }
+            echo "\n";
         }
-        echo "\n";
     }
 }
 new ASMPlugin();
