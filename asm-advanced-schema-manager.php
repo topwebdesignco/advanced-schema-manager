@@ -150,7 +150,7 @@ class ASMPlugin {
                             <table class="wp-list-table widefat striped">
                                 <thead>
                                     <tr>
-                                        <th>Category</th>
+                                        <th>Type</th>
                                         <th>Target</th>
                                         <th>Schema Type</th>
                                         <th>Actions</th>
@@ -160,7 +160,16 @@ class ASMPlugin {
                                     <?php if ($schemas) : ?>
                                         <?php foreach ($schemas as $schema) : ?>
                                             <tr>
-                                                <td><?php echo $schema->postType; ?></td>
+                                                <td>
+                                                    <?php 
+                                                    $post_type_object = get_post_type_object($schema->postType);
+                                                    if ($post_type_object) {
+                                                        echo esc_html($post_type_object->labels->singular_name);
+                                                    } else {
+                                                        echo esc_html($schema->postType);
+                                                    }
+                                                    ?>
+                                                </td>
                                                 <?php if ($schema->postID == 'pages') : ?>
                                                     <td>All Pages</td>
                                                 <?php else : ?>
@@ -183,37 +192,6 @@ class ASMPlugin {
                         <div class="preview-column">
                             <textarea id="code_box" rows="60" cols="1" placeholder='Click "Preview" to see saved schema' readonly></textarea>
                         </div>
-                        <!-- <script type="text/javascript">
-                            jQuery(document).ready(function($) {
-                                var editor = wp.codeEditor.initialize($('#code_box'), {
-                                    codemirror: {
-                                        lineNumbers: true,
-                                        mode: 'application/json',
-                                        readOnly: true
-                                    }
-                                }).codemirror;
-                                var numberOfRows = 35;
-                                var lineHeight = 20;
-                                editor.setSize(null, numberOfRows * lineHeight + "px");
-
-                                $('.preview-schema').on('click', function(e) {
-                                    e.preventDefault();
-                                    var schemaJSON = $(this).data('schema');
-                                    if (typeof schemaJSON === 'string') {
-                                        try {
-                                            var parsedJSON = JSON.parse(schemaJSON);
-                                            var formattedJSON = JSON.stringify(parsedJSON, null, 2);
-                                            editor.setValue(formattedJSON);
-                                        } catch (e) {
-                                            console.error('Error parsing JSON:', e);
-                                            editor.setValue(schemaJSON);
-                                        }
-                                    } else {
-                                        editor.setValue(JSON.stringify(schemaJSON, null, 2));
-                                    }
-                                });
-                            });
-                        </script> -->
                     </div>
                 </div>
             </div>
@@ -308,76 +286,6 @@ class ASMPlugin {
                                 <p class="description">Paste the schema JSON here.</p>
                             </td>
                         </tr>
-                        <!-- <script>
-                            jQuery(document).ready(function($) {
-                                // Code editor
-                                var editor = wp.codeEditor.initialize($('#schemaJson'), {
-                                    codemirror: {
-                                        lineNumbers: true,
-                                        mode: 'application/json',
-                                        readOnly: false
-                                    }
-                                }).codemirror;
-                                var numberOfRows = 22;
-                                var lineHeight = 20;
-                                editor.setSize(null, numberOfRows * lineHeight + "px");
-                                // drop down boxes
-                                $('#postType').on('change', function() {
-                                    var postType = $(this).val();
-                                    $('#postID').prop('disabled', true).html('<option value="">Loading...</option>');
-                                    $('#schemaType').prop('disabled', true);
-                                    $('#schemaJson').prop('disabled', true);
-                                    if (postType) {
-                                        $.ajax({
-                                            url: ajaxurl,
-                                            type: 'POST',
-                                            data: {
-                                                action: 'get_posts_by_type',
-                                                post_type: postType
-                                            },
-                                            success: function(response) {
-                                                var options = '<option value="">Select target</option>';
-                                                if (response.success && response.data.length > 0) {
-                                                    if (postType == 'page') {
-                                                        options += '<option value="pages">All Pages</option>';
-                                                    }
-                                                    $.each(response.data, function(index, post) {
-                                                        options += '<option value="' + post.ID + '">' + post.post_title + '</option>';
-                                                    });
-                                                } else {
-                                                    options = '<option value="">Nothing found</option>';
-                                                }
-                                                $('#postID').html(options).prop('disabled', false);
-                                            },
-                                            error: function() {
-                                                $('#postID').html('<option value="">Error loading</option>').prop('disabled', false);
-                                            }
-                                        });
-                                    } else {
-                                        $('#postID').html('<option value="">Select type first</option>').prop('disabled', true);
-                                    }
-                                });
-                                $('#postID').on('change', function() {
-                                    var postID = $(this).val();
-                                    $('#schemaType').prop('disabled', true);
-                                    $('#schemaJson').prop('disabled', true);
-                                    if (postID != '') {
-                                        $('#schemaType').prop('disabled', false);
-                                    } else {
-                                        $('#schemaType').prop('disabled', true);
-                                    }
-                                });
-                                $('#schemaType').on('change', function() {
-                                    var schemaType = $(this).val();
-                                    $('#schemaJson').prop('disabled', true);
-                                    if (schemaType != '') {
-                                        $('#schemaJson').prop('disabled', false);
-                                    } else {
-                                        $('#schemaJson').prop('disabled', true);
-                                    }
-                                });
-                            });
-                        </script> -->
                     </tbody>
                 </table>
                 <?php submit_button('Save Schema'); ?>
@@ -430,6 +338,7 @@ class ASMPlugin {
             }
         }
         $postTypes = get_post_types(array('public' => true), 'objects');
+        $posts = get_posts(array('post_type' => $schema->postType, 'posts_per_page' => -1, 'post_status' => 'publish'));
         ?>
         <div class="wrap">
             <h1>Edit Schema</h1>
@@ -457,7 +366,12 @@ class ASMPlugin {
                             <th><label for="postID">Target?</label></th>
                             <td>
                                 <select id="postID" name="postID">
-                                    <option value="<?php echo $schema->postID ?>"><?php echo get_the_title($schema->postID) ?></option>
+                                    <?php if($schema->postType == 'page') : ?>
+                                        <option value="pages" <?php selected($schema->postID, 'pages'); ?>>All Pages</option>
+                                    <?php endif; ?>
+                                    <?php foreach($posts as $post) : ?>
+                                        <option value="<?php echo $post->ID; ?>" <?php selected($post->ID, $schema->postID); ?>><?php echo $post->post_title; ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                                 <p class="description">Select target Page, Post, or Custom Post Type, where you want your schema to be injected.</p>
                             </td>
@@ -484,71 +398,6 @@ class ASMPlugin {
                                 <p class="description">Paste the schema JSON here.</p>
                             </td>
                         </tr>
-                        <!-- <script>
-                            jQuery(document).ready(function($) {                                
-                                // Code editor
-                                var editor = wp.codeEditor.initialize($('#schemaJson'), {
-                                    codemirror: {
-                                        lineNumbers: true,
-                                        mode: 'application/json',
-                                        readOnly: false
-                                    }
-                                }).codemirror;
-                                var numberOfRows = 22;
-                                var lineHeight = 20;
-                                editor.setSize(null, numberOfRows * lineHeight + "px");
-                                // drop down boxes
-                                $('#postType').on('change', function() {
-                                    var postType = $(this).val();
-                                    $('#postID').prop('disabled', true).html('<option value="">Loading...</option>');
-                                    $('#schemaType').prop('disabled', true);
-                                    if (postType) {
-                                        $.ajax({
-                                            url: ajaxurl,
-                                            type: 'POST',
-                                            data: {
-                                                action: 'get_posts_by_type',
-                                                post_type: postType
-                                            },
-                                            success: function(response) {
-                                                var options = '<option value="">Select a target</option>';
-                                                if (response.success && response.data.length > 0) {
-                                                    $.each(response.data, function(index, post) {
-                                                        options += '<option value="' + post.ID + '">' + post.post_title + '</option>';
-                                                    });
-                                                } else {
-                                                    options = '<option value="">Nothing found</option>';
-                                                }
-                                                $('#postID').html(options).prop('disabled', false);
-                                            },
-                                            error: function() {
-                                                $('#postID').html('<option value="">Error loading</option>').prop('disabled', false);
-                                            }
-                                        });
-                                    } else {
-                                        $('#postID').html('<option value="">Select type first</option>').prop('disabled', true);
-                                    }
-                                });
-                                $('#postID').on('change', function() {
-                                    var postID = $(this).val();
-                                    $('#schemaType').prop('disabled', true);
-                                    if (postID != '') {
-                                        $('#schemaType').prop('disabled', false);
-                                    } else {
-                                        $('#schemaType').prop('disabled', true);
-                                    }
-                                });
-                                // $('#schemaType').on('change', function() {
-                                //     var schemaType = $(this).val();
-                                //     $('#schemaJson').prop('disabled', true);
-                                //     if (schemaType != '') {
-                                //         $('#schemaJson').prop('disabled', false);
-                                //     } else {
-                                //         $('#schemaJson').prop('disabled', true);
-                                //     }
-                                // });
-                            });
-                        </script> -->
                     </tbody>
                 </table>
                 <?php submit_button('Update Schema'); ?>
