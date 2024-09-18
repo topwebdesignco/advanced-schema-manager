@@ -160,9 +160,6 @@ class ASMPlugin {
                                     <?php if ($schemas) : ?>
                                         <?php foreach ($schemas as $schema) : ?>
                                             <tr>
-<<<<<<< HEAD
-                                                <td><?php echo $schema->postType; ?></td>
-=======
                                                 <td>
                                                     <?php 
                                                     $post_type_object = get_post_type_object($schema->postType);
@@ -173,7 +170,6 @@ class ASMPlugin {
                                                     }
                                                     ?>
                                                 </td>
->>>>>>> eb7c5ca7abc49c132b14d7077b50286370d2091c
                                                 <?php if ($schema->postID == 'pages') : ?>
                                                     <td>All Pages</td>
                                                 <?php else : ?>
