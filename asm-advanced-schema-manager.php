@@ -2,9 +2,9 @@
 /**
  * Advanced Schema Manager - WordPress Plugin
  *
- * @package           ASMPlugin
+ * @package         ASMPlugin
  * @author            Muhammad Shoaib
- * @copyright         2024 Muhammad Shoaib
+ * @copyright      2024 Muhammad Shoaib
  * @license           GPL-3.0-or-later
  *
  * This program is free software: you can redistribute it and/or modify
@@ -32,7 +32,6 @@
  * Text Domain:       asm-advanced-schema-manager
  * License:           GPL v3
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Update URI:        https://github.com/topwebdesignco/advanced-schema-manager
  */
 
 
@@ -52,11 +51,13 @@ class ASMPlugin {
         register_activation_hook(__FILE__, [$this, 'create_table']);
         add_action('admin_menu', [$this, 'create_menu']);
         add_action('admin_menu', [$this, 'set_active_menu']);
+        add_action('wp_ajax_get_posts_by_type', [$this, 'get_posts_by_type']);
         add_action('wp_head', [$this, 'inject_schema']);
     }
 
     public function enqueue_styles() {
-        wp_enqueue_style('asm-styles', plugin_dir_url(__FILE__) . 'style.css', [], time());
+        wp_enqueue_style('asm-styles', plugin_dir_url(__FILE__) . 'assets/css/style.css', [], '1.0.0');
+        wp_enqueue_script('asm-scripts', plugin_dir_url(__FILE__) . 'assets/js/scripts.js', [], '1.0.0', true);
         wp_enqueue_code_editor(['type' => 'application/json']);
         wp_enqueue_script('wp-theme-plugin-editor');
         wp_enqueue_style('wp-codemirror');
@@ -66,11 +67,12 @@ class ASMPlugin {
         $charset_collate = $this->wpdb->get_charset_collate();
         $sql = "CREATE TABLE IF NOT EXISTS $this->table (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            page_id bigint(20) NOT NULL,
-            schema_type varchar(255) NOT NULL,
-            schema_json longtext NOT NULL,
-            created_on datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_on datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            postType varchar(255) NOT NULL,
+            postID varchar(255) NOT NULL,
+            schemaType varchar(255) NOT NULL,
+            schemaJson longtext NOT NULL,
+            createdOn datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updatedOn datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
         ) $charset_collate;";
 
@@ -79,7 +81,7 @@ class ASMPlugin {
     }
 
     public function create_menu() {
-        $icon_url = plugins_url('icons/asm-icon.svg', __FILE__);
+        $icon_url = plugins_url('assets/icons/asm-icon.svg', __FILE__);
         add_menu_page('Schema Manager', 'Schema Manager', 'edit_pages',  'asm-home', [$this, 'all_schemas_page'], $icon_url, 11);
         add_submenu_page('asm-home', 'All Schemas', 'All Schemas', 'edit_pages', 'asm-home', [$this, 'all_schemas_page']);
         add_submenu_page('asm-home', 'Add New Schema', 'Add New Schema', 'edit_pages', 'asm-add-schema', [$this, 'add_schema_page']);
@@ -101,22 +103,25 @@ class ASMPlugin {
         }
 
         if (isset($_GET['delete_id'])) {
-            if (!isset($_GET['_wpnonce']) || !wp_verify_nonce($_GET['_wpnonce'], 'delete_schema_' . $_GET['delete_id'])) {
-                wp_die('Nonce verification failed');
-            }
-
-            $delete_id = intval($_GET['delete_id']);
-            $deleted = $this->wpdb->delete($this->table, ['id' => $delete_id], ['%d']);
-
-            if ($deleted) {
-                echo '<script type="text/javascript">
-                         window.location.href="' . admin_url('admin.php?page=asm-home&message=deleted') . '";
-                      </script>';
-                exit;
-            } else {
-                add_action('admin_notices', function() {
-                    echo '<div class="error"><p>Failed to delete schema.</p></div>';
-                });
+            if ( isset($_GET['_wpnonce']) && !empty($_GET['_wpnonce']) ) {
+                $nonce = sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) );
+                $delete_id = isset($_GET['delete_id']) ? absint(wp_unslash($_GET['delete_id'])) : 0;
+                if ( wp_verify_nonce( $nonce, 'delete_schema_' . $delete_id ) ) {
+                    $delete_id = intval($_GET['delete_id']);
+                    $deleted = $this->wpdb->delete($this->table, ['id' => $delete_id], ['%d']);
+                    if ($deleted) {
+                        echo '<script type="text/javascript">
+                                 window.location.href="' . admin_url('admin.php?page=asm-home&message=deleted') . '";
+                              </script>';
+                        exit;
+                    } else {
+                        add_action('admin_notices', function() {
+                            echo '<div class="error"><p>Failed to delete schema.</p></div>';
+                        });
+                    }
+                } else {
+                    wp_die('Nonce verification failed');
+                }
             }
         }
         ?>
@@ -137,11 +142,16 @@ class ASMPlugin {
                     <hr class="wp-header-end">
                     <div class="asm flex-container">
                         <div class="table-column">
-                            <?php $schemas = $this->wpdb->get_results("SELECT * FROM $this->table"); ?>
+                            <?php
+                            $table_name = esc_sql($this->table);
+                            $query = $this->wpdb->prepare("SELECT * FROM $table_name");
+                            $schemas = $this->wpdb->get_results($query);
+                            ?>
                             <table class="wp-list-table widefat striped">
                                 <thead>
                                     <tr>
-                                        <th>Target Page</th>
+                                        <th>Type</th>
+                                        <th>Target</th>
                                         <th>Schema Type</th>
                                         <th>Actions</th>
                                     </tr>
@@ -150,10 +160,24 @@ class ASMPlugin {
                                     <?php if ($schemas) : ?>
                                         <?php foreach ($schemas as $schema) : ?>
                                             <tr>
-                                                <td><a href="#"><?php echo ($schema->page_id == -1) ? 'All Pages' : get_the_title($schema->page_id); ?></a></td>
-                                                <td><?php echo stripslashes($schema->schema_type); ?></td>
                                                 <td>
-                                                <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schema_json)); ?>">Preview</a> |
+                                                    <?php 
+                                                    $post_type_object = get_post_type_object($schema->postType);
+                                                    if ($post_type_object) {
+                                                        echo esc_html($post_type_object->labels->singular_name);
+                                                    } else {
+                                                        echo esc_html($schema->postType);
+                                                    }
+                                                    ?>
+                                                </td>
+                                                <?php if ($schema->postID == 'pages') : ?>
+                                                    <td>All Pages</td>
+                                                <?php else : ?>
+                                                    <td><a href="<?php echo the_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
+                                                <?php endif; ?>
+                                                <td><?php echo $schema->schemaType; ?></td>
+                                                <td>
+                                                    <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schemaJson)); ?>">View</a> |
                                                     <a href="?page=asm-edit-schema&edit_id=<?php echo $schema->id; ?>">Edit</a> |
                                                     <a href="<?php echo wp_nonce_url('?page=asm-home&delete_id=' . $schema->id, 'delete_schema_' . $schema->id); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
                                                 </td>
@@ -166,41 +190,8 @@ class ASMPlugin {
                             </table>
                         </div>
                         <div class="preview-column">
-                            <div id="visual_box" style="margin-bottom: 20px; padding: 10px 0px 10px 0px; background: #f9f9f9; border: 1px solid #ddd;"></div>
                             <textarea id="code_box" rows="60" cols="1" placeholder='Click "Preview" to see saved schema' readonly></textarea>
                         </div>
-                        <script type="text/javascript">
-                            jQuery(document).ready(function($) {
-                                var editor = wp.codeEditor.initialize($('#code_box'), {
-                                    codemirror: {
-                                        lineNumbers: true,
-                                        mode: 'application/json',
-                                        readOnly: true
-                                    }
-                                }).codemirror;
-                                var numberOfRows = 35;
-                                var lineHeight = 20;
-                                editor.setSize(null, numberOfRows * lineHeight + "px");
-
-                                $('.preview-schema').on('click', function(e) {
-                                    e.preventDefault();
-                                    var schemaJSON = $(this).data('schema');
-                                    if (typeof schemaJSON === 'string') {
-                                        try {
-                                            var parsedJSON = JSON.parse(schemaJSON);
-                                            var formattedJSON = JSON.stringify(parsedJSON, null, 2);
-                                            editor.setValue(formattedJSON);
-                                        } catch (e) {
-                                            console.error('Error parsing JSON:', e);
-                                            editor.setValue(schemaJSON);
-                                            $('#visual_box').html('<em>Error parsing schema for preview.</em>');
-                                        }
-                                    } else {
-                                        editor.setValue(JSON.stringify(schemaJSON, null, 2));
-                                    }
-                                });
-                            });
-                        </script>
                     </div>
                 </div>
             </div>
@@ -216,103 +207,84 @@ class ASMPlugin {
         <div class="wrap">
             <h1>Add New Schema</h1>
             <?php
-            if (isset($_POST['schema_json']) && isset($_POST['page_id'])) {
-                $page_id = sanitize_text_field($_POST['page_id']);
-                $schema_type = sanitize_text_field($_POST['schema_type']);
-                $schema_json = wp_kses_post($_POST['schema_json']);
-                if (!empty($schema_type) && !empty($schema_json)) {
-                    $inserted = $this->wpdb->insert(
-                        $this->table,
-                        ['page_id' => $page_id, 'schema_type' => $schema_type, 'schema_json' => $schema_json]
-                    );
-                    if ($inserted) {
-                        echo '<script type="text/javascript">
-                                    window.location.href="' . admin_url('admin.php?page=asm-home&message=saved') . '";
-                                </script>';
-                        exit;
+            if (isset($_POST['postType']) && isset($_POST['postID']) && isset($_POST['schemaType']) && isset($_POST['schemaJson'])) {
+                if (isset($_POST['save_schema_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['save_schema_nonce'])), 'save_schema_action')) {
+                    $postType = sanitize_text_field(wp_unslash($_POST['postType']));
+                    $postID = sanitize_text_field(wp_unslash($_POST['postID']));
+                    $schemaType = sanitize_text_field(wp_unslash($_POST['schemaType']));
+                    $schemaJson = wp_kses_post(wp_unslash($_POST['schemaJson']));
+                    if (!empty($postType)  && !empty($postID) && !empty($schemaType) && !empty($schemaJson)) {
+                        $inserted = $this->wpdb->insert(
+                            $this->table,
+                            ['postType' => $postType, 'postID' => $postID, 'schemaType' => $schemaType, 'schemaJson' => $schemaJson]
+                        );
+                        if ($inserted) {
+                            echo '<script type="text/javascript">
+                                        window.location.href="' . admin_url('admin.php?page=asm-home&message=saved') . '";
+                                    </script>';
+                            exit;
+                        } else {
+                            echo '<div class="error"><p>Failed to save schema.</p></div>';
+                        }
                     } else {
-                        echo '<div class="error"><p>Failed to save schema.</p></div>';
+                        echo '<div class="error"><p>Please select a page and enter schema data.</p></div>';
                     }
                 } else {
-                    echo '<div class="error"><p>Please select a page and enter schema data.</p></div>';
+                    wp_die('Invalid nonce.');
                 }
             }
-            $pages = get_pages();
-            $page_id = isset($_GET['page_id']) ? intval($_GET['page_id']) : -1;
+            $postTypes = get_post_types(array('public' => true), 'objects');
             ?>
             <form method="POST">
+                <?php wp_nonce_field('save_schema_action', 'save_schema_nonce'); ?>
                 <table class="form-table">
                     <tbody>
                         <tr>
-                            <th><label for="page_id">Select Page</label></th>
+                            <th><label for="postType">Type</label></th>
                             <td>
-                                <select id="page_id" name="page_id">
-                                    <option value="">Select a page</option>
-                                    <option value="-1">All Pages</option>
-                                    <?php foreach ($pages as $page) : ?>
-                                        <option value="<?php echo $page->ID; ?>"><?php echo $page->post_title; ?></option>
-                                    <?php endforeach; ?>
+                                <select id="postType" name="postType">
+                                    <option value="">Select type</option>
+                                     <?php if (!empty($postTypes)) : ?>
+                                        <?php foreach ($postTypes as $postType) : ?>
+                                            <?php if (!in_array($postType->name, array('attachment'))) : ?>
+                                                <option value="<?php echo esc_attr($postType->name) ?>"><?php echo esc_html($postType->label) ?></option>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </select>
-                                <p class="description">Select the page to apply the schema to.</p>
+                                <p class="description">First select post type.</p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="schema_type">Select Schema Type</label></th>
+                            <th><label for="postID">Target?</label></th>
+                            <td>
+                                <select id="postID" name="postID" disabled>
+                                    <option value="">Select target</option>
+                                </select>
+                                <p class="description">Select target Page, Post, or Custom Post Type, where you want your schema to be inserted.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label for="schemaType">Schema Type</label></th>
                             <td>
                                 <?php
-                                $schema_types = [
-                                        "Action", "Article", "Book", "BreadcrumbList", "Course", "CreativeWork",
-                                        "Dataset", "Event", "FAQ", "HowTo", "JobPosting", "LocalBusiness", 
-                                        "MediaObject", "MusicRecording", "NewsArticle", "Offer", "Organization", 
-                                        "Person", "Place", "Product", "Recipe", "Review", "Service", 
-                                        "SoftwareApplication", "SpeakableSpecification", "VideoObject"
-                                    ];
+                                $schemaTypes = ["Action", "Article", "Book", "BreadcrumbList", "Course", "CreativeWork","Dataset", "Event", "FAQ", "HowTo", "JobPosting", "LocalBusiness", "MediaObject", "MusicRecording", "NewsArticle", "Offer", "Organization", "Person", "Place", "Product", "Recipe", "Review", "Service", "SoftwareApplication", "SpeakableSpecification", "VideoObject"];
                                 ?>
-                                <select name="schema_type" id="schema_type">
-                                    <option value="">Select a type</option>
-                                    <?php foreach ($schema_types as $schema_type): ?>
-                                        <option value="<?php echo $schema_type; ?>"><?php echo $schema_type; ?></option>
+                                <select id="schemaType" name="schemaType" disabled>
+                                    <option value="">Select type</option>
+                                    <?php foreach ($schemaTypes as $schemaType): ?>
+                                        <option value="<?php echo $schemaType; ?>"><?php echo $schemaType; ?></option>
                                     <?php endforeach; ?>
                                 </select>
-                                <p class="description">Select schema type to properly lable saved schemas.</p>
+                                <p class="description">Select schema structured data type to lable your saved schemas.</p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="schema_json">Schema JSON</label></th>
+                            <th><label for="schemaJson">JSON-LD Data</label></th>
                             <td>
-                                <textarea id="code_box" name="schema_json" rows="10" class="large-text"></textarea>
+                                <textarea id="schemaJson" name="schemaJson" rows="10" class="large-text"></textarea>
                                 <p class="description">Paste the schema JSON here.</p>
                             </td>
-                            <script type="text/javascript">
-                                jQuery(document).ready(function($) {
-                                    var editor = wp.codeEditor.initialize($('#code_box'), {
-                                        codemirror: {
-                                            lineNumbers: true,
-                                            mode: 'application/json',
-                                            readOnly: false
-                                        }
-                                    }).codemirror;
-                                    var numberOfRows = 25;
-                                    var lineHeight = 20;
-                                    editor.setSize(null, numberOfRows * lineHeight + "px");
-
-                                    $('.preview-schema').on('click', function(e) {
-                                        e.preventDefault();
-                                        var schemaJSON = $(this).data('schema');
-                                        if (typeof schemaJSON === 'string') {
-                                            try {
-                                                var parsedJSON = JSON.stringify(JSON.parse(schemaJSON), null, 2);
-                                                editor.setValue(parsedJSON);
-                                            } catch (e) {
-                                                console.error('Error parsing JSON:', e);
-                                                editor.setValue(schemaJSON);
-                                            }
-                                        } else {
-                                            editor.setValue(JSON.stringify(schemaJSON, null, 2));
-                                        }
-                                    });
-                                });
-                            </script>
                         </tr>
                     </tbody>
                 </table>
@@ -331,107 +303,100 @@ class ASMPlugin {
             wp_redirect(admin_url('admin.php?page=asm-home'));
             exit;
         }
-
-        $schema = $this->wpdb->get_row($this->wpdb->prepare("SELECT * FROM $this->table WHERE id = %d", $schema_id));
+        $table_name = esc_sql($this->table);
+        $schema_id = absint($schema_id);
+        $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE id = %d", $schema_id);
+        $schema = $this->wpdb->get_row($query);
         if (!$schema) {
             wp_die('Schema not found.');
         }
-
-        if (isset($_POST['schema_json']) && isset($_POST['page_id'])) {
-            $page_id = sanitize_text_field($_POST['page_id']);
-            $schema_type = sanitize_text_field($_POST['schema_type']);
-            $schema_json = wp_kses_post($_POST['schema_json']);
-            if (!empty($schema_type) && !empty($schema_json)) {
-                $updated = $this->wpdb->update(
-                    $this->table,
-                    ['page_id' => $page_id, 'schema_type' => $schema_type, 'schema_json' => $schema_json],
-                    ['id' => $schema_id]
-                );
-                if ($updated !== false) {
-                    echo '<script type="text/javascript">
-                                window.location.href="' . admin_url('admin.php?page=asm-home&message=updated') . '";
-                            </script>';
-                    exit;
+        if (isset($_POST['postType']) && isset($_POST['postID']) && isset($_POST['schemaType']) && isset($_POST['schemaJson'])) {
+            if (isset($_POST['update_schema_nonce']) && wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['update_schema_nonce'])), 'update_schema_action')) {
+                $postType = sanitize_text_field(wp_unslash($_POST['postType']));
+                $postID = sanitize_text_field(wp_unslash($_POST['postID']));
+                $schemaType = sanitize_text_field(wp_unslash($_POST['schemaType']));
+                $schemaJson = wp_kses_post(wp_unslash($_POST['schemaJson']));
+                if (!empty($postType)  && !empty($postID) && !empty($schemaType) && !empty($schemaJson)) {
+                    $updated = $this->wpdb->update(
+                        $this->table,
+                        ['postType' => $postType, 'postID' => $postID, 'schemaType' => $schemaType, 'schemaJson' => $schemaJson],
+                        ['id' => $schema_id]
+                    );
+                    if ($updated !== false) {
+                        echo '<script type="text/javascript">
+                                    window.location.href="' . admin_url('admin.php?page=asm-home&message=updated') . '";
+                                </script>';
+                        exit;
+                    } else {
+                        echo '<div class="error"><p>Failed to update schema.</p></div>';
+                    }
                 } else {
-                    echo '<div class="error"><p>Failed to update schema.</p></div>';
+                    echo '<div class="error"><p>All fields are required.</p></div>';
                 }
             } else {
-                echo '<div class="error"><p>Please select a page and enter schema data.</p></div>';
+                wp_die('Invalid nonce.');
             }
         }
+        $postTypes = get_post_types(array('public' => true), 'objects');
+        $posts = get_posts(array('post_type' => $schema->postType, 'posts_per_page' => -1, 'post_status' => 'publish'));
         ?>
         <div class="wrap">
             <h1>Edit Schema</h1>
             <form method="POST">
+                <?php wp_nonce_field('update_schema_action', 'update_schema_nonce'); ?>
                 <table class="form-table">
                     <tbody>
                         <tr>
-                            <th><label for="page_id">Select Page</label></th>
+                            <th><label for="postType">Type</label></th>
                             <td>
-                                <select id="page_id" name="page_id">
-                                    <?php $pages = get_pages(); ?>
-                                    <option value="-1" <?php selected($schema->page_id, -1); ?>>All Pages</option>
-                                    <?php foreach ($pages as $page) : ?>
-                                        <option value="<?php echo $page->ID; ?>" <?php selected($schema->page_id, $page->ID); ?>><?php echo $page->post_title; ?></option>
-                                    <?php endforeach; ?>
+                                <select id="postType" name="postType">
+                                    <option value="">Select type</option>
+                                     <?php if (!empty($postTypes)) : ?>
+                                        <?php foreach ($postTypes as $postType) : ?>
+                                            <?php if (!in_array($postType->name, array('attachment'))) : ?>
+                                                <option value="<?php echo esc_attr($postType->name) ?>" <?php selected($postType->name, $schema->postType) ?>><?php echo esc_html($postType->label) ?></option>
+                                            <?php endif; ?>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </select>
+                                <p class="description">First select post type.</p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="schema_type">Slect Schema Type</label></th>
+                            <th><label for="postID">Target?</label></th>
+                            <td>
+                                <select id="postID" name="postID">
+                                    <?php if($schema->postType == 'page') : ?>
+                                        <option value="pages" <?php selected($schema->postID, 'pages'); ?>>All Pages</option>
+                                    <?php endif; ?>
+                                    <?php foreach($posts as $post) : ?>
+                                        <option value="<?php echo $post->ID; ?>" <?php selected($post->ID, $schema->postID); ?>><?php echo $post->post_title; ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <p class="description">Select target Page, Post, or Custom Post Type, where you want your schema to be injected.</p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th><label for="schemaType">Schema Type</label></th>
                             <td>
                                 <?php
-                                $schema_types = [
-                                        "Action", "Article", "Book", "BreadcrumbList", "Course", "CreativeWork",
-                                        "Dataset", "Event", "FAQ", "HowTo", "JobPosting", "LocalBusiness", 
-                                        "MediaObject", "MusicRecording", "NewsArticle", "Offer", "Organization", 
-                                        "Person", "Place", "Product", "Recipe", "Review", "Service", 
-                                        "SoftwareApplication", "SpeakableSpecification", "VideoObject"
-                                    ];
+                                $schemaTypes = ["Action", "Article", "Book", "BreadcrumbList", "Course", "CreativeWork","Dataset", "Event", "FAQ", "HowTo", "JobPosting", "LocalBusiness", "MediaObject", "MusicRecording", "NewsArticle", "Offer", "Organization", "Person", "Place", "Product", "Recipe", "Review", "Service", "SoftwareApplication", "SpeakableSpecification", "VideoObject"];
                                 ?>
-                                <select name="schema_type" id="schema_type">
-                                    <option value="">Select a type</option>
-                                    <?php foreach ($schema_types as $schema_type): ?>
-                                        <option value="<?php echo $schema_type; ?>" <?php selected($schema->schema_type, $schema_type); ?>><?php echo $schema_type; ?></option>
+                                <select id="schemaType" name="schemaType">
+                                <option value="">Select type</option>
+                                    <?php foreach ($schemaTypes as $schemaType): ?>
+                                        <option value="<?php echo $schemaType; ?>" <?php selected($schemaType, $schema->schemaType) ?>><?php echo $schemaType; ?></option>
                                     <?php endforeach; ?>
                                 </select>
+                                <p class="description">Select schema structured data type to lable your saved schemas.</p>
                             </td>
                         </tr>
                         <tr>
-                            <th><label for="schema_json">Schema JSON</label></th>
+                            <th><label for="schemaJson">JSON-LD Data</label></th>
                             <td>
-                                <textarea id="code_box" name="schema_json" rows="10" class="large-text"><?php echo esc_textarea(stripslashes($schema->schema_json)); ?></textarea>
+                                <textarea id="schemaJson" name="schemaJson" rows="10" class="large-text"><?php echo stripslashes($schema->schemaJson) ?></textarea>
+                                <p class="description">Paste the schema JSON here.</p>
                             </td>
-                            <script type="text/javascript">
-                                jQuery(document).ready(function($) {
-                                    var editor = wp.codeEditor.initialize($('#code_box'), {
-                                        codemirror: {
-                                            lineNumbers: true,
-                                            mode: 'application/json',
-                                            readOnly: false
-                                        }
-                                    }).codemirror;
-                                    var numberOfRows = 25;
-                                    var lineHeight = 20;
-                                    editor.setSize(null, numberOfRows * lineHeight + "px");
-
-                                    $('.preview-schema').on('click', function(e) {
-                                        e.preventDefault();
-                                        var schemaJSON = $(this).data('schema');
-                                        if (typeof schemaJSON === 'string') {
-                                            try {
-                                                var parsedJSON = JSON.stringify(JSON.parse(schemaJSON), null, 2);
-                                                editor.setValue(parsedJSON);
-                                            } catch (e) {
-                                                console.error('Error parsing JSON:', e);
-                                                editor.setValue(schemaJSON);
-                                            }
-                                        } else {
-                                            editor.setValue(JSON.stringify(schemaJSON, null, 2));
-                                        }
-                                    });
-                                });
-                            </script>
                         </tr>
                     </tbody>
                 </table>
@@ -441,30 +406,77 @@ class ASMPlugin {
         <?php
     }
 
+    public function get_posts_by_type() {
+        // Check for the post_type parameter
+        if (isset($_POST['post_type'])) {
+            $post_type = sanitize_text_field(wp_unslash($_POST['post_type']));
+            $posts = get_posts(array(
+                'post_type' => $post_type,
+                'posts_per_page' => -1,
+                'post_status' => 'publish',
+            ));    
+            if (!empty($posts)) {
+                $response = array();
+                foreach ($posts as $post) {
+                    $response[] = array(
+                        'ID' => $post->ID,
+                        'post_title' => $post->post_title,
+                    );
+                }    
+                wp_send_json_success($response);
+            } else {
+                wp_send_json_error('Nothing found');
+            }
+        } else {
+            wp_send_json_error('Invalid type');
+        }    
+        wp_die();
+    }
+
     public function inject_schema() {
-        if (!is_page() && !is_single()) return;
-        echo "\n<!-- Schema structured data added by Advanced Schema Manager WordPress plugin -->\n";
-        $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE page_id = -1"));
-        if ($schemas) {
-            foreach ($schemas as $schema) {
-                $clean_schema_json = stripslashes($schema->schema_json);
-                $decoded_schema = json_decode($clean_schema_json, true);
-                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+        if (is_page()) {
+            echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+            $postID = 'pages';
+            $table_name = esc_sql($this->table);
+            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %s", $postID);
+            $schemas = $this->wpdb->get_results($query);
+            if ($schemas) {
+                foreach ($schemas as $schema) {
+                    $clean_schemaJson = stripslashes($schema->schemaJson);
+                    $decoded_schema = json_decode($clean_schemaJson, true);
+                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                }
             }
-        }
-        $page_id = get_the_ID();
-        $schemas = $this->wpdb->get_results($this->wpdb->prepare("SELECT * FROM $this->table WHERE page_id = %d", $page_id));
-        if ($schemas) {
-            foreach ($schemas as $schema) {
-                $clean_schema_json = stripslashes($schema->schema_json);
-                $decoded_schema = json_decode($clean_schema_json, true);
-                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            $postID = get_the_ID();
+            $table_name = esc_sql($this->table);
+            $postID = absint($postID);
+            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
+            $schemas = $this->wpdb->get_results($query);
+            if ($schemas) {
+                foreach ($schemas as $schema) {
+                    $clean_schemaJson = stripslashes($schema->schemaJson);
+                    $decoded_schema = json_decode($clean_schemaJson, true);
+                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                }
             }
+            echo "\n";
+        } elseif (is_single()) {
+            echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+            $postID = get_the_ID();
+            $table_name = esc_sql($this->table);
+            $postID = absint($postID);
+            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
+            $schemas = $this->wpdb->get_results($query);
+            if ($schemas) {
+                foreach ($schemas as $schema) {
+                    $clean_schemaJson = stripslashes($schema->schemaJson);
+                    $decoded_schema = json_decode($clean_schemaJson, true);
+                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                }
+            }
+            echo "\n";
         }
-        echo "\n";
     }
 }
-
 new ASMPlugin();
-
 ?>
