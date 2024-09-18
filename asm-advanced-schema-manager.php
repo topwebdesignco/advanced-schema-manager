@@ -154,7 +154,11 @@ class ASMPlugin {
                                         <?php foreach ($schemas as $schema) : ?>
                                             <tr>
                                                 <td><?php echo $schema->postType; ?></td>
-                                                <td><a href="<?php echo the_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
+                                                <?php if ($schema->postID == 'pages') : ?>
+                                                    <td>All Pages</td>
+                                                <?php else : ?>
+                                                    <td><a href="<?php echo the_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
+                                                <?php endif; ?>
                                                 <td><?php echo $schema->schemaType; ?></td>
                                                 <td>
                                                     <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schemaJson)); ?>">View Schema</a> |
