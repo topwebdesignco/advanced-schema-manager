@@ -144,8 +144,12 @@ class ASMPlugin {
                         <div class="table-column">
                             <?php
                             $table_name = esc_sql($this->table);
-                            $query = $this->wpdb->prepare("SELECT * FROM $table_name");
+                            $query = $this->wpdb->prepare("SELECT * FROM $table_name ORDER BY postType ASC, schemaType ASC");
                             $schemas = $this->wpdb->get_results($query);
+                            $groupedSchemas = [];
+                            foreach ($schemas as $schema) {
+                                $groupedSchemas[$schema->postID][] = $schema;
+                            }                            
                             ?>
                             <table class="wp-list-table widefat striped">
                                 <thead>
@@ -157,31 +161,33 @@ class ASMPlugin {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php if ($schemas) : ?>
-                                        <?php foreach ($schemas as $schema) : ?>
-                                            <tr>
-                                                <td>
-                                                    <?php 
-                                                    $post_type_object = get_post_type_object($schema->postType);
-                                                    if ($post_type_object) {
-                                                        echo esc_html($post_type_object->labels->singular_name);
-                                                    } else {
-                                                        echo esc_html($schema->postType);
-                                                    }
-                                                    ?>
-                                                </td>
-                                                <?php if ($schema->postID == 'pages') : ?>
-                                                    <td>All Pages</td>
-                                                <?php else : ?>
-                                                    <td><a href="<?php echo the_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
-                                                <?php endif; ?>
-                                                <td><?php echo $schema->schemaType; ?></td>
-                                                <td>
-                                                    <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schemaJson)); ?>">View</a> |
-                                                    <a href="?page=asm-edit-schema&edit_id=<?php echo $schema->id; ?>">Edit</a> |
-                                                    <a href="<?php echo wp_nonce_url('?page=asm-home&delete_id=' . $schema->id, 'delete_schema_' . $schema->id); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
-                                                </td>
-                                            </tr>
+                                    <?php if ($groupedSchemas) : ?>
+                                        <?php foreach ($groupedSchemas as $postID => $schemas) : ?>
+                                            <?php foreach ($schemas as $schema) : ?>
+                                                <tr>
+                                                    <td>
+                                                        <?php 
+                                                            $post_type_object = get_post_type_object($schema->postType);
+                                                            if ($post_type_object) {
+                                                                echo esc_html($post_type_object->labels->singular_name);
+                                                            } else {
+                                                                echo esc_html($schema->postType);
+                                                            }
+                                                        ?>
+                                                    </td>
+                                                    <?php if ($schema->postID == 'pages') : ?>
+                                                        <td>All Pages</td>
+                                                    <?php else : ?>
+                                                        <td><a href="<?php echo get_permalink($schema->postID); ?>" target="_blank"><?php echo get_the_title($schema->postID); ?></a></td>
+                                                    <?php endif; ?>
+                                                    <td><?php echo esc_html($schema->schemaType); ?></td>
+                                                    <td>
+                                                        <a href="#" class="preview-schema" data-schema="<?php echo esc_attr(stripslashes($schema->schemaJson)); ?>">View</a> |
+                                                        <a href="?page=asm-edit-schema&edit_id=<?php echo esc_attr($schema->id); ?>">Edit</a> |
+                                                        <a href="<?php echo esc_url(wp_nonce_url('?page=asm-home&delete_id=' . $schema->id, 'delete_schema_' . $schema->id)); ?>" onclick="return confirm('Are you sure you want to delete this schema?');">Delete</a>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
                                         <?php endforeach; ?>
                                     <?php else : ?>
                                         <tr><td colspan="4">No schemas found.</td></tr>
