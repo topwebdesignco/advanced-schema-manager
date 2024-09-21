@@ -439,50 +439,152 @@ class ASMPlugin {
         wp_die();
     }
 
+    // public function inject_schema() {
+    //     if (is_page()) {
+    //         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+    //         $postID = 'pages';
+    //         $table_name = esc_sql($this->table);
+    //         $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %s", $postID);
+    //         $schemas = $this->wpdb->get_results($query);
+    //         if ($schemas) {
+    //             foreach ($schemas as $schema) {
+    //                 $clean_schemaJson = stripslashes($schema->schemaJson);
+    //                 $decoded_schema = json_decode($clean_schemaJson, true);
+    //                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+    //             }
+    //         }
+    //         $postID = get_the_ID();
+    //         $table_name = esc_sql($this->table);
+    //         $postID = absint($postID);
+    //         $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
+    //         $schemas = $this->wpdb->get_results($query);
+    //         if ($schemas) {
+    //             foreach ($schemas as $schema) {
+    //                 $clean_schemaJson = stripslashes($schema->schemaJson);
+    //                 $decoded_schema = json_decode($clean_schemaJson, true);
+    //                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+    //             }
+    //         }
+    //         echo "\n";
+    //     } elseif (is_single()) {
+    //         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+    //         $postID = get_the_ID();
+    //         $table_name = esc_sql($this->table);
+    //         $postID = absint($postID);
+    //         $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
+    //         $schemas = $this->wpdb->get_results($query);
+    //         if ($schemas) {
+    //             foreach ($schemas as $schema) {
+    //                 $clean_schemaJson = stripslashes($schema->schemaJson);
+    //                 $decoded_schema = json_decode($clean_schemaJson, true);
+    //                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+    //             }
+    //         }
+    //         echo "\n";
+    //     }
+    // }
+
     public function inject_schema() {
         if (is_page()) {
-            echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
-            $postID = 'pages';
-            $table_name = esc_sql($this->table);
-            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %s", $postID);
-            $schemas = $this->wpdb->get_results($query);
-            if ($schemas) {
-                foreach ($schemas as $schema) {
-                    $clean_schemaJson = stripslashes($schema->schemaJson);
-                    $decoded_schema = json_decode($clean_schemaJson, true);
-                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
-                }
-            }
-            $postID = get_the_ID();
-            $table_name = esc_sql($this->table);
-            $postID = absint($postID);
-            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
-            $schemas = $this->wpdb->get_results($query);
-            if ($schemas) {
-                foreach ($schemas as $schema) {
-                    $clean_schemaJson = stripslashes($schema->schemaJson);
-                    $decoded_schema = json_decode($clean_schemaJson, true);
-                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
-                }
-            }
-            echo "\n";
+            // Inject schema for pages (your existing logic)
+            $this->get_schema('pages');
         } elseif (is_single()) {
-            echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
-            $postID = get_the_ID();
-            $table_name = esc_sql($this->table);
-            $postID = absint($postID);
-            $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
-            $schemas = $this->wpdb->get_results($query);
-            if ($schemas) {
-                foreach ($schemas as $schema) {
-                    $clean_schemaJson = stripslashes($schema->schemaJson);
-                    $decoded_schema = json_decode($clean_schemaJson, true);
-                    echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
-                }
-            }
-            echo "\n";
+            // Inject schema for single posts (your existing logic)
+            $this->get_schema(get_the_ID());
+        } elseif (is_home() || is_archive() || is_category()) {
+            // Inject BreadcrumbList and ItemList schema for archive pages
+            $this->create_archive_schema();
         }
     }
+    
+    // Method to inject saved schema from database
+    private function get_schema($postID) {
+        echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+        $table_name = esc_sql($this->table);
+        $postID = esc_sql($postID);
+        
+        $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %s", $postID);
+        $schemas = $this->wpdb->get_results($query);
+        
+        if ($schemas) {
+            foreach ($schemas as $schema) {
+                $clean_schemaJson = stripslashes($schema->schemaJson);
+                $decoded_schema = json_decode($clean_schemaJson, true);
+                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            }
+        }
+        echo "\n";
+    }
+    
+    // Method to inject BreadcrumbList and ItemList schema for blog archive pages
+    private function create_archive_schema() {
+        echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+        
+        // BreadcrumbList Schema
+        $breadcrumb_schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => []
+        ];
+    
+        $crumbs = [
+            ['name' => 'Home', 'url' => home_url()],
+        ];
+    
+        if (is_category()) {
+            $crumbs[] = ['name' => single_cat_title('', false), 'url' => get_category_link(get_queried_object_id())];
+        } elseif (is_home()) {
+            $crumbs[] = ['name' => 'Blog', 'url' => get_permalink(get_option('page_for_posts'))];
+        } elseif (is_post_type_archive()) {
+            $post_type = get_post_type_object(get_query_var('post_type'));
+            $crumbs[] = ['name' => $post_type->labels->name, 'url' => get_post_type_archive_link($post_type->name)];
+        }
+    
+        foreach ($crumbs as $index => $crumb) {
+            $breadcrumb_schema['itemListElement'][] = [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $crumb['name'],
+                'item' => $crumb['url']
+            ];
+        }
+        if ($breadcrumb_schema) {
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+        }
+        if (is_home()) {
+            $posts = get_posts([
+                'posts_per_page' => -1,
+                'post_type' => 'post',
+            ]);
+        }
+        elseif (is_post_type_archive()) {
+            $post_type = get_query_var('post_type');
+            $posts = get_posts([
+                'posts_per_page' => -1,
+                'post_type' => $post_type,
+            ]);
+        }
+        
+        if ($posts) {
+            $itemlist_schema = [
+                '@context' => 'https://schema.org',
+                '@type' => 'ItemList',
+                'itemListElement' => []
+            ];
+        
+            foreach ($posts as $index => $post) {
+                $itemlist_schema['itemListElement'][] = [
+                    '@type' => 'ListItem',
+                    'position' => $index + 1,
+                    'url' => get_permalink($post->ID),
+                    'name' => get_the_title($post->ID)
+                ];
+            }
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+        }
+        echo "\n";
+    }
+    
 }
 new ASMPlugin();
 ?>
