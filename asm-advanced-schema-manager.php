@@ -449,13 +449,8 @@ class ASMPlugin {
             $this->create_archive_schema();
         }
     }
-<<<<<<< HEAD
-    
-    private function get_schema($postID) {
-=======
     // Method to create BreadcrumbList and ItemList schema for pages
     private function create_page_schema() {
->>>>>>> b9bed1966999baf77b2bcb7ddfaf8005812218d9
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
         $breadcrumb_schema = [
             '@context' => 'https://schema.org',
