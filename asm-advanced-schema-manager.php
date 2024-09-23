@@ -439,67 +439,89 @@ class ASMPlugin {
         wp_die();
     }
 
-    // public function inject_schema() {
-    //     if (is_page()) {
-    //         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
-    //         $postID = 'pages';
-    //         $table_name = esc_sql($this->table);
-    //         $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %s", $postID);
-    //         $schemas = $this->wpdb->get_results($query);
-    //         if ($schemas) {
-    //             foreach ($schemas as $schema) {
-    //                 $clean_schemaJson = stripslashes($schema->schemaJson);
-    //                 $decoded_schema = json_decode($clean_schemaJson, true);
-    //                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
-    //             }
-    //         }
-    //         $postID = get_the_ID();
-    //         $table_name = esc_sql($this->table);
-    //         $postID = absint($postID);
-    //         $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
-    //         $schemas = $this->wpdb->get_results($query);
-    //         if ($schemas) {
-    //             foreach ($schemas as $schema) {
-    //                 $clean_schemaJson = stripslashes($schema->schemaJson);
-    //                 $decoded_schema = json_decode($clean_schemaJson, true);
-    //                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
-    //             }
-    //         }
-    //         echo "\n";
-    //     } elseif (is_single()) {
-    //         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
-    //         $postID = get_the_ID();
-    //         $table_name = esc_sql($this->table);
-    //         $postID = absint($postID);
-    //         $query = $this->wpdb->prepare("SELECT * FROM $table_name WHERE postID = %d", $postID);
-    //         $schemas = $this->wpdb->get_results($query);
-    //         if ($schemas) {
-    //             foreach ($schemas as $schema) {
-    //                 $clean_schemaJson = stripslashes($schema->schemaJson);
-    //                 $decoded_schema = json_decode($clean_schemaJson, true);
-    //                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
-    //             }
-    //         }
-    //         echo "\n";
-    //     }
-    // }
-
     public function inject_schema() {
         if (is_page()) {
-            // Inject schema for pages (your existing logic)
-            $this->get_schema('pages');
+            $this->create_page_schema();
+            // $this->get_saved_schema('pages');
         } elseif (is_single()) {
-            // Inject schema for single posts (your existing logic)
-            $this->get_schema(get_the_ID());
+            $this->get_saved_schema(get_the_ID());
         } elseif (is_home() || is_archive() || is_category()) {
-            // Inject BreadcrumbList and ItemList schema for archive pages
             $this->create_archive_schema();
         }
     }
-    
-    // Method to inject saved schema from database
-    private function get_schema($postID) {
+    // Method to create BreadcrumbList and ItemList schema for pages
+    private function create_page_schema() {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
+        $breadcrumb_schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'name' => get_the_title(get_the_ID()),
+            'itemListElement' => []
+        ];
+        $crumbs = [
+            ['name' => 'Home', 'url' => home_url()],
+        ];
+        if (!is_front_page()) {
+            if (is_page()) {
+                // Add parent pages if any
+                $parents = get_post_ancestors(get_the_ID());
+                if ($parents) {
+                    $parents = array_reverse($parents);
+                    foreach ($parents as $parent_id) {
+                        $crumbs[] = [
+                            'name' => get_the_title($parent_id),
+                            'url' => get_permalink($parent_id)
+                        ];
+                    }
+                }
+                $crumbs[] = ['name' => get_the_title(), 'url' => get_permalink()];
+            }
+        }
+        foreach ($crumbs as $index => $crumb) {
+            $breadcrumb_schema['itemListElement'][] = [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $crumb['name'],
+                'item' => $crumb['url']
+            ];
+        }
+        if ($breadcrumb_schema) {
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+        }
+        if (is_front_page()) {
+            $page_id = 0;
+        } else {
+            $page_id = (is_front_page()) ? get_option('page_on_front') : get_the_ID();
+        }
+        $pages = get_pages([
+            'parent' => $page_id,
+            'post_status' => 'publish',
+            'sort_column' => 'menu_order',
+        ]);
+        if ($pages) {
+            $itemlist_schema = [
+                '@context' => 'https://schema.org',
+                '@type' => 'ItemList',
+                'name' => get_the_title(get_the_ID()),
+                'itemListElement' => []
+            ];
+            foreach ($pages as $index => $page) {
+                $itemlist_schema['itemListElement'][] = [
+                    '@type' => 'ListItem',
+                    'position' => $index + 1,
+                    'name' => get_the_title($page->ID),
+                    'url' => get_permalink($page->ID),
+                ];
+            }
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+        }
+        // calling method to fetch other saved schemas
+        $this->get_saved_schema('pages');
+        echo "\n";
+    }
+    
+    // Method to fetch saved schema from database
+    private function get_saved_schema($postID) {
         $table_name = esc_sql($this->table);
         $postID = esc_sql($postID);
         
@@ -513,17 +535,24 @@ class ASMPlugin {
                 echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
             }
         }
-        echo "\n";
     }
-    
-    // Method to inject BreadcrumbList and ItemList schema for blog archive pages
+    // Method to create BreadcrumbList and ItemList schema for blog archive pages
     private function create_archive_schema() {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
-        
-        // BreadcrumbList Schema
+        $breadcrumb_name;
+        if (is_category()) {
+            $breadcrumb_name = single_cat_title('', false);
+        } elseif (is_home()) {
+            $breadcrumb_name = get_the_title(get_option('page_for_posts'));
+        } elseif (is_post_type_archive()) {
+            $post_type = get_post_type_object(get_query_var('post_type'));
+            $breadcrumb_name = $post_type->labels->name;
+        }
+
         $breadcrumb_schema = [
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
+            'name' => $breadcrumb_name,
             'itemListElement' => []
         ];
     
@@ -549,7 +578,7 @@ class ASMPlugin {
             ];
         }
         if ($breadcrumb_schema) {
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
         }
         if (is_home()) {
             $posts = get_posts([
@@ -569,6 +598,7 @@ class ASMPlugin {
             $itemlist_schema = [
                 '@context' => 'https://schema.org',
                 '@type' => 'ItemList',
+                'name' => $breadcrumb_name,
                 'itemListElement' => []
             ];
         
@@ -576,15 +606,15 @@ class ASMPlugin {
                 $itemlist_schema['itemListElement'][] = [
                     '@type' => 'ListItem',
                     'position' => $index + 1,
+                    'name' => get_the_title($post->ID),
                     'url' => get_permalink($post->ID),
-                    'name' => get_the_title($post->ID)
                 ];
             }
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
         }
         echo "\n";
     }
-    
+
 }
 new ASMPlugin();
 ?>
