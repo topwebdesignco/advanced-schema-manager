@@ -536,12 +536,6 @@ class ASMPlugin {
             }
         }
     }
-<<<<<<< HEAD
-    
-    private function create_archive_schema() {
-        echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
-        
-=======
     // Method to create BreadcrumbList and ItemList schema for blog archive pages
     private function create_archive_schema() {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
@@ -555,7 +549,6 @@ class ASMPlugin {
             $breadcrumb_name = $post_type->labels->name;
         }
 
->>>>>>> b9bed1966999baf77b2bcb7ddfaf8005812218d9
         $breadcrumb_schema = [
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
