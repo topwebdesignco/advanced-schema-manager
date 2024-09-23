@@ -486,7 +486,7 @@ class ASMPlugin {
             ];
         }
         if ($breadcrumb_schema) {
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
         }
         if (is_front_page()) {
             $page_id = 0;
@@ -513,11 +513,12 @@ class ASMPlugin {
                     'url' => get_permalink($page->ID),
                 ];
             }
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
         }
         // calling method to fetch other saved schemas
         $this->get_saved_schema('pages');
-        echo "\n";
+        $this->get_saved_schema(get_the_ID());
+        echo "<!-- End Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n\n";
     }
     
     // Method to fetch saved schema from database
@@ -532,11 +533,11 @@ class ASMPlugin {
             foreach ($schemas as $schema) {
                 $clean_schemaJson = stripslashes($schema->schemaJson);
                 $decoded_schema = json_decode($clean_schemaJson, true);
-                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
+                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
             }
         }
     }
-    // Method to create BreadcrumbList and ItemList schema for blog archive pages
+    // Method to create BreadcrumbList and ItemList schema for archive pages
     private function create_archive_schema() {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
         $breadcrumb_name;
