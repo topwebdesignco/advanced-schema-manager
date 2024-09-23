@@ -486,7 +486,7 @@ class ASMPlugin {
             ];
         }
         if ($breadcrumb_schema) {
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
         }
         if (is_front_page()) {
             $page_id = 0;
@@ -513,7 +513,7 @@ class ASMPlugin {
                     'url' => get_permalink($page->ID),
                 ];
             }
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
         }
         // calling method to fetch other saved schemas
         $this->get_saved_schema('pages');
@@ -533,7 +533,7 @@ class ASMPlugin {
             foreach ($schemas as $schema) {
                 $clean_schemaJson = stripslashes($schema->schemaJson);
                 $decoded_schema = json_decode($clean_schemaJson, true);
-                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+                echo "<script type=\"application/ld+json\">" . wp_json_encode($decoded_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
             }
         }
     }
@@ -579,7 +579,7 @@ class ASMPlugin {
             ];
         }
         if ($breadcrumb_schema) {
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
         }
         if (is_home()) {
             $posts = get_posts([
@@ -611,7 +611,7 @@ class ASMPlugin {
                     'url' => get_permalink($post->ID),
                 ];
             }
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
         }
         echo "\n";
     }
