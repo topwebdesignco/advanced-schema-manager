@@ -497,7 +497,6 @@ class ASMPlugin {
         }
     }
     
-    // Method to inject saved schema from database
     private function get_schema($postID) {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
         $table_name = esc_sql($this->table);
@@ -516,11 +515,9 @@ class ASMPlugin {
         echo "\n";
     }
     
-    // Method to inject BreadcrumbList and ItemList schema for blog archive pages
     private function create_archive_schema() {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
         
-        // BreadcrumbList Schema
         $breadcrumb_schema = [
             '@context' => 'https://schema.org',
             '@type' => 'BreadcrumbList',
