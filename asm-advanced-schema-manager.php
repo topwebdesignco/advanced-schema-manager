@@ -517,7 +517,8 @@ class ASMPlugin {
         }
         // calling method to fetch other saved schemas
         $this->get_saved_schema('pages');
-        echo "\n";
+        $this->get_saved_schema(get_the_ID());
+        echo "<!-- End Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n\n";
     }
     
     // Method to fetch saved schema from database
@@ -536,7 +537,7 @@ class ASMPlugin {
             }
         }
     }
-    // Method to create BreadcrumbList and ItemList schema for blog archive pages
+    // Method to create BreadcrumbList and ItemList schema for archive pages
     private function create_archive_schema() {
         echo "\n<!-- Schema structured data added by Advanced Schema Manager WP plugin developed by Muhammad Shoaib -->\n";
         $breadcrumb_name;
@@ -578,7 +579,7 @@ class ASMPlugin {
             ];
         }
         if ($breadcrumb_schema) {
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($breadcrumb_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
         }
         if (is_home()) {
             $posts = get_posts([
@@ -610,7 +611,7 @@ class ASMPlugin {
                     'url' => get_permalink($post->ID),
                 ];
             }
-            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "</script>\n";
+            echo "<script type=\"application/ld+json\">" . wp_json_encode($itemlist_schema, JSON_UNESCAPED_SLASHES) . "</script>\n";
         }
         echo "\n";
     }
